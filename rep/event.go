@@ -29,10 +29,17 @@ const (
 )
 
 type RetrievalEvent interface {
+	// Code returns the type of event this is
 	Code() Code
+	// Phase returns what phase of a retrieval this even occurred on
 	Phase() Phase
+	// PayloadCid returns the CID being requested
 	PayloadCid() cid.Cid
+	// StorageProviderId returns the peer ID of the storage provider if this
+	// retrieval was requested via peer ID
 	StorageProviderId() peer.ID
+	// StorageProviderAddr returns the peer address of the storage provider if
+	// this retrieval was requested via peer address
 	StorageProviderAddr() address.Address
 }
 
@@ -120,22 +127,25 @@ type RetrievalEventSuccess struct {
 	storageProviderId   peer.ID
 	storageProviderAddr address.Address
 	receivedSize        uint64
+	receivedCids        int64
 }
 
-func NewRetrievalEventSuccess(phase Phase, payloadCid cid.Cid, storageProviderId peer.ID, storageProviderAddr address.Address, receivedSize uint64) RetrievalEventSuccess {
-	return RetrievalEventSuccess{phase, payloadCid, storageProviderId, storageProviderAddr, receivedSize}
+func NewRetrievalEventSuccess(phase Phase, payloadCid cid.Cid, storageProviderId peer.ID, storageProviderAddr address.Address, receivedSize uint64, receivedCids int64) RetrievalEventSuccess {
+	return RetrievalEventSuccess{phase, payloadCid, storageProviderId, storageProviderAddr, receivedSize, receivedCids}
 }
 
-func (r RetrievalEventConnect) Code() Code                                    { return ConnectCode }
-func (r RetrievalEventConnect) Phase() Phase                                  { return r.phase }
-func (r RetrievalEventConnect) PayloadCid() cid.Cid                           { return r.payloadCid }
-func (r RetrievalEventConnect) StorageProviderId() peer.ID                    { return r.storageProviderId }
-func (r RetrievalEventConnect) StorageProviderAddr() address.Address          { return r.storageProviderAddr }
-func (r RetrievalEventQueryAsk) Code() Code                                   { return QueryAskCode }
-func (r RetrievalEventQueryAsk) Phase() Phase                                 { return r.phase }
-func (r RetrievalEventQueryAsk) PayloadCid() cid.Cid                          { return r.payloadCid }
-func (r RetrievalEventQueryAsk) StorageProviderId() peer.ID                   { return r.storageProviderId }
-func (r RetrievalEventQueryAsk) StorageProviderAddr() address.Address         { return r.storageProviderAddr }
+func (r RetrievalEventConnect) Code() Code                            { return ConnectCode }
+func (r RetrievalEventConnect) Phase() Phase                          { return r.phase }
+func (r RetrievalEventConnect) PayloadCid() cid.Cid                   { return r.payloadCid }
+func (r RetrievalEventConnect) StorageProviderId() peer.ID            { return r.storageProviderId }
+func (r RetrievalEventConnect) StorageProviderAddr() address.Address  { return r.storageProviderAddr }
+func (r RetrievalEventQueryAsk) Code() Code                           { return QueryAskCode }
+func (r RetrievalEventQueryAsk) Phase() Phase                         { return r.phase }
+func (r RetrievalEventQueryAsk) PayloadCid() cid.Cid                  { return r.payloadCid }
+func (r RetrievalEventQueryAsk) StorageProviderId() peer.ID           { return r.storageProviderId }
+func (r RetrievalEventQueryAsk) StorageProviderAddr() address.Address { return r.storageProviderAddr }
+
+// QueryResponse returns the response from a storage provider to a query-ask
 func (r RetrievalEventQueryAsk) QueryResponse() retrievalmarket.QueryResponse { return r.queryResponse }
 func (r RetrievalEventProposed) Code() Code                                   { return ProposedCode }
 func (r RetrievalEventProposed) Phase() Phase                                 { return r.phase }
@@ -157,10 +167,20 @@ func (r RetrievalEventFailure) Phase() Phase                                  { 
 func (r RetrievalEventFailure) PayloadCid() cid.Cid                           { return r.payloadCid }
 func (r RetrievalEventFailure) StorageProviderId() peer.ID                    { return r.storageProviderId }
 func (r RetrievalEventFailure) StorageProviderAddr() address.Address          { return r.storageProviderAddr }
-func (r RetrievalEventFailure) ErrorMessage() string                          { return r.errorMessage }
-func (r RetrievalEventSuccess) Code() Code                                    { return SuccessCode }
-func (r RetrievalEventSuccess) Phase() Phase                                  { return r.phase }
-func (r RetrievalEventSuccess) PayloadCid() cid.Cid                           { return r.payloadCid }
-func (r RetrievalEventSuccess) StorageProviderId() peer.ID                    { return r.storageProviderId }
-func (r RetrievalEventSuccess) StorageProviderAddr() address.Address          { return r.storageProviderAddr }
-func (r RetrievalEventSuccess) ReceivedSize() uint64                          { return r.receivedSize }
+
+// ErrorMessage returns a string form of the error that caused the retrieval
+// failure
+func (r RetrievalEventFailure) ErrorMessage() string                 { return r.errorMessage }
+func (r RetrievalEventSuccess) Code() Code                           { return SuccessCode }
+func (r RetrievalEventSuccess) Phase() Phase                         { return r.phase }
+func (r RetrievalEventSuccess) PayloadCid() cid.Cid                  { return r.payloadCid }
+func (r RetrievalEventSuccess) StorageProviderId() peer.ID           { return r.storageProviderId }
+func (r RetrievalEventSuccess) StorageProviderAddr() address.Address { return r.storageProviderAddr }
+
+// ReceivedSize returns the number of bytes received
+func (r RetrievalEventSuccess) ReceivedSize() uint64 { return r.receivedSize }
+
+// ReceivedCids returns the number of (non-unique) CIDs received so far - note
+// that a block can exist in more than one place in the DAG so this may not
+// equal the total number of blocks transferred
+func (r RetrievalEventSuccess) ReceivedCids() int64 { return r.receivedCids }

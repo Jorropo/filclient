@@ -251,7 +251,7 @@ func NewClientWithConfig(cfg *Config) (*FilClient, error) {
 		}
 	}
 
-	if err := mgr.Start(context.TODO()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		return nil, err
 	}
 
@@ -273,12 +273,12 @@ func NewClientWithConfig(cfg *Config) (*FilClient, error) {
 		authCheckPeriod: time.Minute,
 	}
 	libp2pTransferMgr := newLibp2pTransferManager(dtServer, lp2pds, authDB, lp2pXferOpts)
-	if err := libp2pTransferMgr.Start(context.TODO()); err != nil {
+	if err := libp2pTransferMgr.Start(ctx); err != nil {
 		return nil, err
 	}
 
 	// Create a retrieval event publisher
-	retrievalEventPublisher := rep.New()
+	retrievalEventPublisher := rep.New(ctx)
 
 	fc := &FilClient{
 		host:                       cfg.Host,
@@ -1750,7 +1750,7 @@ func (fc *FilClient) RetrieveContentFromPeerWithProgressCallback(
 	speed := uint64(float64(state.Received()) / duration.Seconds())
 
 	// Otherwise publish a retrieval event success
-	fc.retrievalEventPublisher.Publish(rep.NewRetrievalEventSuccess(rep.RetrievalPhase, rootCid, peerID, address.Undef, state.Received()))
+	fc.retrievalEventPublisher.Publish(rep.NewRetrievalEventSuccess(rep.RetrievalPhase, rootCid, peerID, address.Undef, state.Received(), state.ReceivedCidsTotal()))
 
 	return &RetrievalStats{
 		Peer:         state.OtherPeer(),
@@ -1770,46 +1770,38 @@ func (fc *FilClient) SubscribeToRetrievalEvents(subscriber rep.RetrievalSubscrib
 // Implement RetrievalSubscriber
 func (fc *FilClient) OnRetrievalEvent(event rep.RetrievalEvent) {
 	kv := make([]interface{}, 0)
-	kv = append(kv, "code")
-	kv = append(kv, event.Code())
-	kv = append(kv, "phase")
-	kv = append(kv, event.Phase())
-	kv = append(kv, "payloadCid")
-	kv = append(kv, event.PayloadCid())
-	kv = append(kv, "storageProviderId")
-	kv = append(kv, event.StorageProviderId())
-	kv = append(kv, "storageProviderAddr")
-	kv = append(kv, event.StorageProviderAddr())
+	logadd := func(kva ...interface{}) {
+		if len(kva)%2 != 0 {
+			panic("bad number of key/value arguments")
+		}
+		for i := 0; i < len(kva); i += 2 {
+			key, ok := kva[i].(string)
+			if !ok {
+				panic("expected string key")
+			}
+			kv = append(kv, key, kva[i+1])
+		}
+	}
+	logadd("code", event.Code(),
+		"phase", event.Phase(),
+		"payloadCid", event.PayloadCid(),
+		"storageProviderId", event.StorageProviderId(),
+		"storageProviderAddr", event.StorageProviderAddr())
 	switch tevent := event.(type) {
 	case rep.RetrievalEventQueryAsk:
-		kv = append(kv, "queryResponse:Status")
-		kv = append(kv, tevent.QueryResponse().Status)
-		kv = append(kv, "queryResponse:PieceCIDFound")
-		kv = append(kv, tevent.QueryResponse().PieceCIDFound)
-		kv = append(kv, "queryResponse:Size")
-		kv = append(kv, tevent.QueryResponse().Size)
-		kv = append(kv, "queryResponse:PaymentAddress")
-		kv = append(kv, tevent.QueryResponse().PaymentAddress)
-		kv = append(kv, "queryResponse:MinPricePerByte")
-		kv = append(kv, tevent.QueryResponse().MinPricePerByte)
-		kv = append(kv, "queryResponse:MaxPaymentInterval")
-		kv = append(kv, tevent.QueryResponse().MaxPaymentInterval)
-		kv = append(kv, "queryResponse:MaxPaymentIntervalIncrease")
-		kv = append(kv, tevent.QueryResponse().MaxPaymentIntervalIncrease)
-		kv = append(kv, "queryResponse:Message")
-		kv = append(kv, tevent.QueryResponse().Message)
-		kv = append(kv, "queryResponse:UnsealPrice")
-		kv = append(kv, tevent.QueryResponse().UnsealPrice)
+		logadd("queryResponse:Status", tevent.QueryResponse().Status,
+			"queryResponse:PieceCIDFound", tevent.QueryResponse().PieceCIDFound,
+			"queryResponse:Size", tevent.QueryResponse().Size,
+			"queryResponse:PaymentAddress", tevent.QueryResponse().PaymentAddress,
+			"queryResponse:MinPricePerByte", tevent.QueryResponse().MinPricePerByte,
+			"queryResponse:MaxPaymentInterval", tevent.QueryResponse().MaxPaymentInterval,
+			"queryResponse:MaxPaymentIntervalIncrease", tevent.QueryResponse().MaxPaymentIntervalIncrease,
+			"queryResponse:Message", tevent.QueryResponse().Message,
+			"queryResponse:UnsealPrice", tevent.QueryResponse().UnsealPrice)
 	case rep.RetrievalEventFailure:
-		kv = append(kv, "errorMessage")
-		kv = append(kv, tevent.ErrorMessage())
+		logadd("errorMessage", tevent.ErrorMessage())
 	case rep.RetrievalEventSuccess:
-		kv = append(kv, "receivedSize")
-		kv = append(kv, tevent.ReceivedSize())
+		logadd("receivedSize", tevent.ReceivedSize())
 	}
 	retrievalLogger.Debugw("retrieval-event", kv...)
-}
-
-func (fc *FilClient) RetrievalSubscriberId() interface{} {
-	return "filclient"
 }
