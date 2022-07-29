@@ -19,13 +19,13 @@ const (
 type Code string
 
 const (
-	ConnectCode   Code = "connected"
-	QueryAskCode  Code = "query-asked"
-	ProposedCode  Code = "proposed"
-	AcceptedCode  Code = "accepted"
-	FirstByteCode Code = "first-byte-received"
-	FailureCode   Code = "failure"
-	SuccessCode   Code = "success"
+	ConnectedCode  Code = "connected"
+	QueryAskedCode Code = "query-asked"
+	ProposedCode   Code = "proposed"
+	AcceptedCode   Code = "accepted"
+	FirstByteCode  Code = "first-byte-received"
+	FailureCode    Code = "failure"
+	SuccessCode    Code = "success"
 )
 
 type RetrievalEvent interface {
@@ -134,12 +134,12 @@ func NewRetrievalEventSuccess(phase Phase, payloadCid cid.Cid, storageProviderId
 	return RetrievalEventSuccess{phase, payloadCid, storageProviderId, storageProviderAddr, receivedSize, receivedCids}
 }
 
-func (r RetrievalEventConnect) Code() Code                            { return ConnectCode }
+func (r RetrievalEventConnect) Code() Code                            { return ConnectedCode }
 func (r RetrievalEventConnect) Phase() Phase                          { return r.phase }
 func (r RetrievalEventConnect) PayloadCid() cid.Cid                   { return r.payloadCid }
 func (r RetrievalEventConnect) StorageProviderId() peer.ID            { return r.storageProviderId }
 func (r RetrievalEventConnect) StorageProviderAddr() address.Address  { return r.storageProviderAddr }
-func (r RetrievalEventQueryAsk) Code() Code                           { return QueryAskCode }
+func (r RetrievalEventQueryAsk) Code() Code                           { return QueryAskedCode }
 func (r RetrievalEventQueryAsk) Phase() Phase                         { return r.phase }
 func (r RetrievalEventQueryAsk) PayloadCid() cid.Cid                  { return r.payloadCid }
 func (r RetrievalEventQueryAsk) StorageProviderId() peer.ID           { return r.storageProviderId }
